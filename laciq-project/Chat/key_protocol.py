@@ -32,17 +32,16 @@ A funcao decrypt_message inverte a funcao de encriptacao usada pelo servidor se 
 
 
 
-def create_private_key(g, p, prime_key= False):
+def create_private_key( g , p, prime_key= False):
     if prime_key:
-        a = randprime(2**16, 2**20)
+        a = randprime( 2**16, 2**20)
     else:
         n_bits = int(log2(p))
         a = int.from_bytes(os.urandom(n_bits), 'little')
 
     return a
 
-def create_keys(g, p, prime_key= False) :
-    NotImplemented
+def create_keys( g, p, prime_key= False) :
     # INSERT THE REST OF THE CODE HERE
     # must return the private key a and the public key A
     # if prime_key == True, a must be prime.
@@ -57,13 +56,13 @@ def create_keys(g, p, prime_key= False) :
     """
     if prime_key:
         # Gera um número primo aleatório menor que p
-        a = randprime(2, p - 1)
+        a = randprime( 2, p - 1)
     else:
         # Gera um número aleatório menor que p
-        a = random.randint(2, p - 1)
+        a = random.randint( 2, p - 1)
 
     # Calcula a chave pública A = g^a mod p
-    A = pow(g, a, p)
+    A = pow( g, a, p)
 
     return a, A
 
@@ -71,8 +70,9 @@ def create_keys(g, p, prime_key= False) :
 def exchange_keys_server(client_socket, p, g, s, enc_msg, conf_msg):
     # Send p and g to client
     send_json(client_socket, {"p": p, "g": g})
-
+    
     # INSERT THE REST OF THE CODE HERE
+    #tem mais alguma coisa pra adicionar aqui? ........
 
 
 def exchange_keys_client(server_socket):
@@ -84,17 +84,13 @@ def exchange_keys_client(server_socket):
     server_public_key = server_data['public_key']
 
     # INSERT THE REST OF THE CODE HERE
-    #gerar a chave privada do usuário
-    client_private_key = random.randint( 1, p-1)
-
-    #processar a chave pública utilizando a public_key
-    client_public_key = pow(g, client_private_key, g)
+    client_private_key, client_public_key = create_keys( g, p, prime_key= True)
 
      # Send client's public key to the server
     send_json(server_socket, {'public_key': client_public_key})
 
     # Compute the shared secret: server_public_key^client_private_key mod p
-    shared_secret = pow(server_public_key, client_private_key, p)
+    shared_secret = pow( server_public_key, client_private_key, p)
 
     return shared_secret
 
