@@ -36,7 +36,7 @@ def create_private_key(g, p, prime_key= False):
     if prime_key:         
         a = randprime(2**16, 2**20)
     else:
-        n_bits = int(log2(p)/3) 
+        n_bits = int(log2(p)) 
         a = int.from_bytes(os.urandom(n_bits), 'little') #---------#  gerar números grandes criptograficamente #---------# 
         #---------#  em tese esse .urandom(n) vai gerar n bytes #----------------------------------------# 
         #---------#  por isso q eu dividi por 3 pra ter o log8 e gerar os bytes mais certinhos #---------#     
@@ -49,7 +49,7 @@ def create_keys( g, p, prime_key= False) :
 
     a = create_private_key(g, p,prime_key=True) #---------# acho prime_key=True que tanto faz ser primo ou não no #---------------#
     #---------#                                 #---------# contexto q to usando ent vai assim msm #---------------#
-    A = pow( g, a)                              #---------#       A = g^a                          #---------------#
+    A = pow( g, a, p)                              #---------#       A = g^a                          #---------------#
 
     return a, A
 
@@ -63,21 +63,24 @@ def exchange_keys_server(client_socket, p, g, s, enc_msg, conf_msg):
     #---------# Para cada i = 0, 1, ..., N calcula Ai^s      #---------#
     #---------# Para isso precisa receber Ai                 #---------#
     client_data = recv_json(client_socket)                   #---------# confirmar se isso aq tá certo p receber o Ai!!!
-    public_key = client_data['public']                       #---------# Isso aqui é o Ai ???? meti essa de maluco
+    A = client_data['A']                       
     
-    xd = pow(public_key, s)                                  #---------# xd = (g^a)^s = g^as
-    send_json(client_socket, {"c": enc_msg, "Shared_s": xd}) #---------# Faz o envio para Pi
+    A_s = pow(A, s)                                  #---------# xd = (g^a)^s = g^as
+    send_json(client_socket, {"enc_msg": enc_msg, "A_s": A_s}) #---------# Faz o envio para Pi
 
     #          ...                                           #
     #       Aguarda a mensagem decryptada                    #
     #          ...                                           #
 
-    client_data = recv_json(client_socket)
-    msg_dot = client_data['decrypted_msg']
-    #---------# O servidor compara m' com m, e retorna ok se tiver igual e nao ok caso contrário
-    if(msg_dot == conf_msg): return("ok")
-    else: return("not ok")
+    # Recebe a mensagem decifrada do cliente
+    client_response = recv_json(client_socket)
+    dec_msg = client_response['dec_msg']
 
+    # O servidor compara m' com m, e retorna ok se tiver igual e nao ok caso contrário
+    if dec_msg == conf_msg:
+        send_json(client_socket, {"status": "ok"})
+    else:
+        send_json(client_socket, {"status": "not ok"})
 
 
 def exchange_keys_client(server_socket):
@@ -88,22 +91,39 @@ def exchange_keys_client(server_socket):
     g = server_data['g']
 
     # INSERT THE REST OF THE CODE HERE
-    private, public = create_keys( p, g, prime_key=True)
-    send_json(server_socket, {"public_key": public})    #---------# enviou a chave pública do cliente
+    a, A = create_keys( p, g, prime_key=True)
+    send_json(server_socket, {"A": A})    #---------# enviou a chave pública do cliente
     
     #                ...                                                #
     #           espera para receber de volta a info                     #
     #                ...                                                #
     
-    server_data2 = recv_json(server_socket)             #---------# recebeu Shared_s e a cifra
-    shared = server_data2['Shared_s']
-    c = server_data2['c']
+    server_response = recv_json(server_socket)             #---------# recebeu Shared_s e a cifra
+    A_s = server_response['A']
+    enc_msg = server_response['enc_msg']
     
-    #---------# calcula (Ai^s)^1/p para este passo é recomendável que p seja um primo
-    server_public = shared ** 1/private                 #---------# server_public = g^s
-    #---------# calcula mi' = D(g^s, c) e envia m' para o servidor    #---------#
-    msg = decrypt_message(c, get_key(server_public))
-    send_json(server_socket, {"decrypted_msg": msg})   
+    # calcula g^s = (A_s)^(1/a) mod p
+    g_s = pow (A_s, pow(a, -1, p-1), p) 
+
+    #decifrar a msg recebida do cliente
+    chave = get_key(g_s)
+    msg_decifrada = decrypt_message(enc_msg, chave)
+
+    #envia as mensagem para o servidor
+    send_json(server_socket, {"dec_msg": msg_decifrada})
+
+    #                ...                                                #
+    #           espera para receber a resposta                          #
+    #                ...                                                #
+
+    # Recebe a resposta do servidor
+    server_final_response = recv_json(server_socket)
+    status = server_final_response['status']
+
+    if status == "ok":
+        print("Chave compartilhada estabelecida com sucesso!")
+    else:
+        print("Erro na troca de chaves. Tente novamente.")
 
     
 
