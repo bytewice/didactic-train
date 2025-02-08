@@ -32,37 +32,24 @@ A funcao decrypt_message inverte a funcao de encriptacao usada pelo servidor se 
 
 
 
-def create_private_key( g , p, prime_key= False):
-    if prime_key:
-        a = randprime( 2**16, 2**20)
+def create_private_key(g, p, prime_key= False): 
+    if prime_key:         #---------#  para o protocolo q vai ser implementado é opcional ser primo #---------# 
+        a = randprime(2**16, 2**20)
     else:
-        n_bits = int(log2(p))
-        a = int.from_bytes(os.urandom(n_bits), 'little')
-
+        n_bits = int(log2(p)/3) 
+        a = int.from_bytes(os.urandom(n_bits), 'little') #---------#  gerar números grandes criptograficamente #---------# 
+        #---------#  em tese esse .urandom(n) vai gerar n bytes #----------------------------------------# 
+        #---------#  por isso q eu dividi por 3 pra ter o log8 e gerar os bytes mais certinhos #---------#     
     return a
 
 def create_keys( g, p, prime_key= False) :
     # INSERT THE REST OF THE CODE HERE
     # must return the private key a and the public key A
     # if prime_key == True, a must be prime.
-    
-    """
-    Gera a chave privada (a) e a chave pública (A) para o algoritmo de Diffie-Hellman.
 
-    :param g: Base (gerador) para o cálculo da chave pública.
-    :param p: Número primo que define o grupo modular.
-    :param prime_key: Se True, a chave privada (a) deve ser um número primo.
-    :return: Tupla contendo a chave privada (a) e a chave pública (A).
-    """
-    if prime_key:
-        # Gera um número primo aleatório menor que p
-        a = randprime( 2, p - 1)
-    else:
-        # Gera um número aleatório menor que p
-        a = random.randint( 2, p - 1)
-
-    # Calcula a chave pública A = g^a mod p
-    A = pow( g, a, p)
+    a = create_private_key(g, p,) #---------# acho que tanto faz ser primo ou não no #---------------#
+                                  #---------# contexto q to usando ent vai assim msm #---------------#
+    A = pow( g, a)                #---------#       A = g^a                          #---------------#
 
     return a, A
 
@@ -72,7 +59,12 @@ def exchange_keys_server(client_socket, p, g, s, enc_msg, conf_msg):
     send_json(client_socket, {"p": p, "g": g})
     
     # INSERT THE REST OF THE CODE HERE
-    #tem mais alguma coisa pra adicionar aqui? ........
+    #---------# Para cada i = 0, 1, ..., N calcula Ai^s #---------#
+    #---------# Para isso precisa receber Ai            #---------#
+    client_data = recv_json(client_socket)
+    public_key = client_data['public']                  #---------# Isso aqui é o Ai ???? meti essa de maluco
+    xd = pow(public_key, s)                             #---------# xd = (g^a)^s = g^as
+    send_json(client_socket, {"c": enc_msg, "Shared_s": xd}) #---------# Faz o envio para Pi
 
 
 def exchange_keys_client(server_socket):
@@ -81,17 +73,10 @@ def exchange_keys_client(server_socket):
     server_data = recv_json(server_socket)
     p = server_data['p']
     g = server_data['g']
-    server_public_key = server_data['public_key']
 
     # INSERT THE REST OF THE CODE HERE
-    client_private_key, client_public_key = create_keys( g, p, prime_key= True)
-
-     # Send client's public key to the server
-    send_json(server_socket, {'public_key': client_public_key})
-
-    # Compute the shared secret: server_public_key^client_private_key mod p
-    shared_secret = pow( server_public_key, client_private_key, p)
-
-    return shared_secret
-
+    server_data2 = recv_json(server_socket)
+    
+    
+    
     
