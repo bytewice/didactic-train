@@ -75,6 +75,7 @@ class GroupChat:
         s, S = create_keys(g, p)
         print("chave compartilhada:", S)
         
+        #aparentemente essa chave conforme o fernet ta errada no meu protocolo de chaves
         self.key = get_key(S)
         print("chave conforme fernet:",self.key)
         conf_msg = "funcionou"
@@ -132,6 +133,10 @@ class GroupChat:
 
         self.key = exchange_keys_client(client)
         
+        #debugar
+        #test = get_key(self.key)
+        #print("TO SO TESTANDO !!!!!!", test)
+
         stop_event = threading.Event()
 
         threading.Thread(target=self.handle_incoming, args=(client,None, stop_event), daemon= True).start()

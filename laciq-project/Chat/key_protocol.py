@@ -38,8 +38,6 @@ def create_private_key(g, p, prime_key= False):
     else:
         n_bits = int(log2(p)) 
         a = int.from_bytes(os.urandom(n_bits), 'little') #---------#  gerar números grandes criptograficamente #---------# 
-        #---------#  em tese esse .urandom(n) vai gerar n bytes #----------------------------------------# 
-        #---------#  por isso q eu dividi por 3 pra ter o log8 e gerar os bytes mais certinhos #---------#     
     return a
 
 def create_keys( g, p, prime_key= False) :
@@ -65,7 +63,7 @@ def exchange_keys_server(client_socket, p, g, s, enc_msg, conf_msg):
     client_data = recv_json(client_socket)                   #---------# confirmar se isso aq tá certo p receber o Ai!!!
     A = client_data['A']                       
     
-    A_s = pow(A, s)                                  #---------# xd = (g^a)^s = g^as
+    A_s = pow(A, s, p)                                  #---------# xd = (g^a)^s = g^as mod p
     send_json(client_socket, {"enc_msg": enc_msg, "A_s": A_s}) #---------# Faz o envio para Pi
 
     #          ...                                           #
@@ -91,7 +89,7 @@ def exchange_keys_client(server_socket):
     g = server_data['g']
 
     # INSERT THE REST OF THE CODE HERE
-    a, A = create_keys( p, g, prime_key=True)
+    a, A = create_keys( g, p, prime_key=True)
     send_json(server_socket, {"A": A})    #---------# enviou a chave pública do cliente
     
     #                ...                                                #
@@ -99,7 +97,7 @@ def exchange_keys_client(server_socket):
     #                ...                                                #
     
     server_response = recv_json(server_socket)             #---------# recebeu Shared_s e a cifra
-    A_s = server_response['A']
+    A_s = server_response['A_s']
     enc_msg = server_response['enc_msg']
     
     # calcula g^s = (A_s)^(1/a) mod p
@@ -122,6 +120,7 @@ def exchange_keys_client(server_socket):
 
     if status == "ok":
         print("Chave compartilhada estabelecida com sucesso!")
+        return chave
     else:
         print("Erro na troca de chaves. Tente novamente.")
 
